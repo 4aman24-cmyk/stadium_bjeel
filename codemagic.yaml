@@ -3,17 +3,22 @@ workflows:
     name: Stadiome Workflow
     max_build_duration: 60
     instance_type: mac_mini_m2
-    working_directory: stadiome_app
     triggering:
       events:
         - push
     scripts:
       - name: Get Flutter packages
-        script: flutter pub get
+        script: |
+          cd stadiome_app
+          flutter pub get
       - name: Build Android APK
-        script: flutter build apk --release
+        script: |
+          cd stadiome_app
+          flutter build apk --release
       - name: Build iOS App
-        script: flutter build ios --release --no-codesign
+        script: |
+          cd stadiome_app
+          flutter build ios --release --no-codesign
     artifacts:
-      - build/app/outputs/flutter-apk/*.apk
-      - build/ios/iphoneos/*.apps
+      - stadiome_app/build/app/outputs/flutter-apk/*.apk
+      - stadiome_app/build/ios/iphoneos/*.app
