@@ -5,6 +5,7 @@ workflows:
     instance_type: mac_mini_m2
     environment:
       flutter: stable
+      java: 17
     triggering:
       events:
         - push
