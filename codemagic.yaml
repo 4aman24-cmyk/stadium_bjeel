@@ -7,16 +7,16 @@ workflows:
       flutter: stable
       java: 17
     scripts:
-      - name: Fix Gradle Version Automatically
-        script: |
-          cd stadiome_app
-          mkdir -p android/gradle/wrapper
-          echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.5-bin.zip" > android/gradle/wrapper/gradle-wrapper.properties
       - name: Get Flutter packages
         script: |
           cd stadiome_app
           flutter clean
           flutter pub get
+      - name: Force Gradle 8.5 Right Before Build
+        script: |
+          cd stadiome_app
+          mkdir -p android/gradle/wrapper
+          echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.5-bin.zip" > android/gradle/wrapper/gradle-wrapper.properties
       - name: Build Android APK
         script: |
           cd stadiome_app
