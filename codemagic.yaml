@@ -5,18 +5,14 @@ workflows:
     instance_type: mac_mini_m2
     environment:
       flutter: stable
+      java: 17
     scripts:
-      - name: Force Java 11 and Fix Gradle
+      - name: Force Gradle Wrapper Property
         script: |
           cd stadiome_app
-          # Switch Java version on Codemagic to 11
-          LATEST_JDK_11=$(/usr/libexec/java_home -v 11)
-          export JAVA_HOME=$LATEST_JDK_11
-          java -version
-          
-          # Force Gradle 8.5
           mkdir -p android/gradle/wrapper
           echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.5-bin.zip" > android/gradle/wrapper/gradle-wrapper.properties
+          cat android/gradle/wrapper/gradle-wrapper.properties
       - name: Get Flutter packages
         script: |
           cd stadiome_app
