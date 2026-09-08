@@ -4,12 +4,13 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m2
     environment:
-      flutter: 3.19.0
+      flutter: stable
       java: 17
     scripts:
       - name: Get Flutter packages
         script: |
           cd stadiome_app
+          flutter clean
           flutter pub get
       - name: Build Android APK
         script: |
