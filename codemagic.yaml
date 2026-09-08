@@ -7,7 +7,7 @@ workflows:
       flutter: stable
       java: 17
     scripts:
-     - name: Fix Gradle Version Automatically
+      - name: Fix Gradle Version Automatically
         script: |
           cd stadiome_app
           mkdir -p android/gradle/wrapper
