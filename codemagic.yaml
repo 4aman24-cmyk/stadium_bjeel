@@ -5,27 +5,26 @@ workflows:
     instance_type: mac_mini_m2
     environment:
       flutter: stable
+      java: 17
     scripts:
-      - name: Force Java 11 System-Wide
+      - name: Clean and Set Java 17 for Build
         script: |
           cd stadiome_app
-          # Explicitly set Java 11 paths on Codemagic macOS
-          export JAVA_HOME=$(/usr/libexec/java_home -v 11)
+          # Ensure Java 17 environment variables are locked
+          export JAVA_HOME=$HOME/Library/Java/JavaVirtualMachines/temurin-17*/Contents/Home || export JAVA_HOME=$(/usr/libexec/java_home -v 17)
           java -version
           
-          # Force Gradle 8.5
+          # Force Gradle 8.4 (which natively supports Java 21/17 fully without throwing this error)
           mkdir -p android/gradle/wrapper
-          echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.5-bin.zip" > android/gradle/wrapper/gradle-wrapper.properties
+          echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.4-bin.zip" > android/gradle/wrapper/gradle-wrapper.properties
       - name: Get Flutter packages
         script: |
           cd stadiome_app
-          export JAVA_HOME=$(/usr/libexec/java_home -v 11)
           flutter clean
           flutter pub get
       - name: Build Android APK
         script: |
           cd stadiome_app
-          export JAVA_HOME=$(/usr/libexec/java_home -v 11)
           flutter build apk --release
       - name: Build iOS App
         script: |
