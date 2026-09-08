@@ -5,14 +5,14 @@ workflows:
     instance_type: mac_mini_m2
     environment:
       flutter: stable
-      java: 17
+      java: 11
     scripts:
       - name: Get Flutter packages
         script: |
           cd stadiome_app
           flutter clean
           flutter pub get
-      - name: Force Gradle 8.5 Right Before Build
+      - name: Set Gradle Wrapper to 8.5
         script: |
           cd stadiome_app
           mkdir -p android/gradle/wrapper
