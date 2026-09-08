@@ -5,22 +5,27 @@ workflows:
     instance_type: mac_mini_m2
     environment:
       flutter: stable
-      java: 17
     scripts:
-      - name: Force Gradle Wrapper Property
+      - name: Force Java 11 System-Wide
         script: |
           cd stadiome_app
+          # Explicitly set Java 11 paths on Codemagic macOS
+          export JAVA_HOME=$(/usr/libexec/java_home -v 11)
+          java -version
+          
+          # Force Gradle 8.5
           mkdir -p android/gradle/wrapper
           echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.5-bin.zip" > android/gradle/wrapper/gradle-wrapper.properties
-          cat android/gradle/wrapper/gradle-wrapper.properties
       - name: Get Flutter packages
         script: |
           cd stadiome_app
+          export JAVA_HOME=$(/usr/libexec/java_home -v 11)
           flutter clean
           flutter pub get
       - name: Build Android APK
         script: |
           cd stadiome_app
+          export JAVA_HOME=$(/usr/libexec/java_home -v 11)
           flutter build apk --release
       - name: Build iOS App
         script: |
