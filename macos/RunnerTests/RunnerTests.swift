@@ -1,0 +1,27 @@
+<<<<<<< HEAD
+import Cocoa
+import FlutterMacOS
+import XCTest
+
+class RunnerTests: XCTestCase {
+
+  func testExample() {
+    // If you add code to the Runner application, consider adding tests here.
+    // See https://developer.apple.com/documentation/xctest for more information about using XCTest.
+  }
+
+}
+=======
+import Cocoa
+import FlutterMacOS
+import XCTest
+
+class RunnerTests: XCTestCase {
+
+  func testExample() {
+    // If you add code to the Runner application, consider adding tests here.
+    // See https://developer.apple.com/documentation/xctest for more information about using XCTest.
+  }
+
+}
+>>>>>>> 5b5f6f692c892dcc1e3e21dd5a3f37fd7ddbbeb1
