@@ -6,9 +6,6 @@ workflows:
     environment:
       flutter: stable
       java: 17
-    triggering:
-      events:
-        - push
     scripts:
       - name: Get Flutter packages
         script: |
