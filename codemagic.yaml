@@ -8,14 +8,11 @@ workflows:
     scripts:
       - name: Get Flutter packages
         script: |
-          cd stadiome_app
           flutter clean
           flutter pub get
       - name: Build Android APK
         script: |
-          cd stadiome_app
           flutter build apk --release
       - name: Build iOS App
         script: |
-          cd stadiome_app
           flutter build ios --release --no-codesign
