@@ -7,16 +7,11 @@ workflows:
       flutter: stable
       java: 17
     scripts:
-      - name: Clean and Set Java 17 for Build
+      - name: Set Gradle Wrapper to 8.5
         script: |
           cd stadiome_app
-          # Ensure Java 17 environment variables are locked
-          export JAVA_HOME=$HOME/Library/Java/JavaVirtualMachines/temurin-17*/Contents/Home || export JAVA_HOME=$(/usr/libexec/java_home -v 17)
-          java -version
-          
-          # Force Gradle 8.4 (which natively supports Java 21/17 fully without throwing this error)
           mkdir -p android/gradle/wrapper
-          echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.4-bin.zip" > android/gradle/wrapper/gradle-wrapper.properties
+          echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.5-bin.zip" > android/gradle/wrapper/gradle-wrapper.properties
       - name: Get Flutter packages
         script: |
           cd stadiome_app
