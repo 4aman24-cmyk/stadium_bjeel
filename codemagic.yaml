@@ -5,13 +5,7 @@ workflows:
     instance_type: mac_mini_m2
     environment:
       flutter: stable
-      java: 17
     scripts:
-      - name: Set Gradle Wrapper to 8.5
-        script: |
-          cd stadiome_app
-          mkdir -p android/gradle/wrapper
-          echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.5-bin.zip" > android/gradle/wrapper/gradle-wrapper.properties
       - name: Get Flutter packages
         script: |
           cd stadiome_app
