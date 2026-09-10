@@ -13,13 +13,6 @@ workflows:
           flutter pub get
           flutter build apk --release --android-skip-build-dependency-validation
           flutter build ios --release --no-codesign
-          
-          # Packaging .app into .ipa for Codemagic artifacts
-          cd build/ios/iphoneos
-          mkdir -p Payload
-          mv Runner.app Payload/
-          zip -r Runner.ipa Payload
-          cd ../../..
     artifacts:
-      - build/ios/iphoneos/Runner.ipa
+      - build/ios/iphoneos/Runner.app
       - build/app/outputs/flutter-apk/*.apk
