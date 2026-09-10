@@ -20,9 +20,22 @@ workflows:
       - name: Build iOS App
         script: |
           cd ios
-          if [ ! -f "Podfile" ]; then
-            pod init
-          fi
+          rm -f Podfile Podfile.lock
+          cat << 'EOF' > Podfile
+          platform :ios, '13.0'
+          use_frameworks!
+          use_modular_headers!
+
+          target 'Runner' do
+            flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+          end
+
+          post_install do |installer|
+            installer.pods_project.targets.each do |target|
+              flutter_additional_ios_build_settings(target)
+            end
+          end
+          EOF
           pod install
           cd ..
           flutter build ios --release --no-codesign
