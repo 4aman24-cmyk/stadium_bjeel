@@ -12,3 +12,5 @@ workflows:
           flutter create . --platforms=ios,android
           flutter pub get
           flutter build ios --release --no-codesign
+    artifacts:
+      - build/ios/iphoneos/*.ipa
