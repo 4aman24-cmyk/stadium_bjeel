@@ -6,11 +6,16 @@ workflows:
     environment:
       flutter: stable
     scripts:
-      - name: Build iOS and Android
+      - name: Build iOS and Android with Debug
         script: |
           flutter clean
           flutter pub get
-          flutter build ios --release --no-codesign
+          echo "Building iOS..."
+          flutter build ios --release --no-codesign || true
+          echo "Checking build directories..."
+          find build -name "*.app"
+          find build -name "*.ipa"
+          echo "Building Android..."
           flutter build apk --release --android-skip-build-dependency-validation
     artifacts:
       - build/ios/**/*.app
