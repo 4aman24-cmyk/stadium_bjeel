@@ -6,11 +6,13 @@ workflows:
     environment:
       flutter: stable
     scripts:
-      - name: Force recreate project and build iOS
+      - name: Force recreate project and build both iOS and Android
         script: |
           rm -rf ios android
           flutter create . --platforms=ios,android
           flutter pub get
+          flutter build apk --release --android-skip-build-dependency-validation
           flutter build ios --release --no-codesign
     artifacts:
       - build/ios/iphoneos/*.ipa
+      - build/app/outputs/flutter-apk/*.apk
