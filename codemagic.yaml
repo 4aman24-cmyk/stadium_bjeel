@@ -6,17 +6,9 @@ workflows:
     environment:
       flutter: stable
     scripts:
-      - name: Initialize project structure
+      - name: Force recreate project and build iOS
         script: |
-          if [ ! -d "ios" ]; then
-            flutter create . --platforms=android,ios
-          fi
-      - name: Get packages
-        script: |
+          rm -rf ios android
+          flutter create . --platforms=ios,android
           flutter pub get
-      - name: Build Android APK
-        script: |
-          flutter build apk --release --android-skip-build-dependency-validation
-      - name: Build iOS App
-        script: |
           flutter build ios --release --no-codesign
