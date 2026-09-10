@@ -6,9 +6,6 @@ workflows:
     environment:
       flutter: stable
     scripts:
-      - name: Create native platform folders
-        script: |
-          flutter create .
       - name: Get packages
         script: |
           flutter pub get
