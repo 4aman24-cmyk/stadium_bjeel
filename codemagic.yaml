@@ -19,4 +19,9 @@ workflows:
           flutter build apk --release --android-skip-build-dependency-validation
       - name: Build iOS App
         script: |
+          flutter clean
+          flutter pub get
+          cd ios
+          pod install
+          cd ..
           flutter build ios --release --no-codesign
