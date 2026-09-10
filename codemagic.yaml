@@ -6,9 +6,13 @@ workflows:
     environment:
       flutter: stable
     scripts:
-      - name: Force generate platforms before pub get
+      - name: Initialize project structure
         script: |
-          flutter create . --platforms=android,ios
+          if [ ! -d "ios" ]; then
+            flutter create . --platforms=android,ios
+          fi
+      - name: Get packages
+        script: |
           flutter pub get
       - name: Build Android APK
         script: |
