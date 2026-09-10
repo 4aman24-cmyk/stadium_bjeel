@@ -6,12 +6,13 @@ workflows:
     environment:
       flutter: stable
     scripts:
-      - name: Build iOS App and Android APK
+      - name: Build iOS and Android
         script: |
           flutter clean
           flutter pub get
           flutter build ios --release --no-codesign
           flutter build apk --release --android-skip-build-dependency-validation
     artifacts:
-      - build/ios/iphoneos/Runner.app
+      - build/ios/**/*.app
+      - build/ios/**/*.ipa
       - build/app/outputs/flutter-apk/*.apk
