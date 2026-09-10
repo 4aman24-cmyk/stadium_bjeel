@@ -6,11 +6,9 @@ workflows:
     environment:
       flutter: stable
     scripts:
-      - name: Generate platform files first
+      - name: Initialize platform files and packages
         script: |
           flutter create . --platforms=android,ios
-      - name: Get Flutter packages
-        script: |
           flutter clean
           flutter pub get
       - name: Build Android APK
