@@ -20,6 +20,9 @@ workflows:
       - name: Build iOS App
         script: |
           cd ios
+          if [ ! -f "Podfile" ]; then
+            pod init
+          fi
           pod install
           cd ..
           flutter build ios --release --no-codesign
