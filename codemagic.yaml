@@ -6,13 +6,12 @@ workflows:
     environment:
       flutter: stable
     scripts:
-      - name: Build Both Platforms
+      - name: Build Final Release
         script: |
           flutter clean
           flutter pub get
-          flutter build ios --release --no-codesign || true
           flutter build apk --release --android-skip-build-dependency-validation
+          flutter build ios --release --no-codesign || true
     artifacts:
-      - build/ios/iphoneos/**/*.app
-      - build/ios/iphoneos/**/*.ipa
       - build/app/outputs/flutter-apk/*.apk
+      - build/ios/iphoneos/**/*.app
