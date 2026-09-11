@@ -2,10 +2,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   await Hive.initFlutter();
   await Hive.openBox('stadium_v2_box');
   runApp(const MainApp());
@@ -57,7 +61,7 @@ class _SplashScreenState extends State<SplashScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(
-              'assets/stadiom.avif',
+              'stadiom_1.avif',
               width: 140,
               height: 140,
               errorBuilder: (context, error, stackTrace) => const Icon(
@@ -477,7 +481,7 @@ class _HoursBookingScreenState extends State<HoursBookingScreen> {
                   backgroundColor: Colors.green.shade700,
                   foregroundColor: Colors.white,
                 ),
-                onPressed: () {
+                onPressed: () async {
                   if (nameController.text.trim().isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
@@ -503,6 +507,18 @@ class _HoursBookingScreenState extends State<HoursBookingScreen> {
                         'isFixed': true,
                       };
                       box.put(targetKey, targetDayData);
+
+                      // ناردنی بۆ فایەربەیس
+                      await FirebaseFirestore.instance
+                          .collection('stadium_bookings')
+                          .doc(targetKey)
+                          .set({
+                        slot: {
+                          'name': customerName,
+                          'isPaid': isPaid,
+                          'isFixed': true,
+                        }
+                      }, SetOptions(merge: true));
                     }
                   } else {
                     dayData[slot] = {
@@ -511,6 +527,18 @@ class _HoursBookingScreenState extends State<HoursBookingScreen> {
                       'isFixed': false,
                     };
                     box.put(dateKey, dayData);
+
+                    // ناردنی بۆ فایەربەیس
+                    await FirebaseFirestore.instance
+                        .collection('stadium_bookings')
+                        .doc(dateKey)
+                        .set({
+                      slot: {
+                        'name': customerName,
+                        'isPaid': isPaid,
+                        'isFixed': false,
+                      }
+                    }, SetOptions(merge: true));
                   }
 
                   Navigator.pop(context);

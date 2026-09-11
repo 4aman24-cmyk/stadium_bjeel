@@ -13,7 +13,8 @@ dependencies:
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   cupertino_icons: ^1.0.8
-  firebase_core: ^3.4.0
+  firebase_core: ^3.10.1
+  cloud_firestore: ^5.6.2
 
 dev_dependencies:
   flutter_test:
@@ -25,7 +26,7 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/stadiom_1.avif
+    - assets/stadium_1.avif
     - assets/stadium.png
 
 flutter_icons:
