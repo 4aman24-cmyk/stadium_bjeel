@@ -10,6 +10,12 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true,
+    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+  );
+
   await Hive.initFlutter();
   await Hive.openBox('stadium_v2_box');
   runApp(const MainApp());
@@ -61,7 +67,7 @@ class _SplashScreenState extends State<SplashScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(
-              'stadiom_1.avif',
+              'assets/stadiom_1.avif',
               width: 140,
               height: 140,
               errorBuilder: (context, error, stackTrace) => const Icon(
@@ -157,7 +163,6 @@ class MainMenuScreen extends StatelessWidget {
   }
 }
 
-// ناوی مانگەکان بە کوردی
 String _getKurdishMonthName(int month) {
   List<String> months = [
     '',
@@ -177,7 +182,7 @@ String _getKurdishMonthName(int month) {
   return months[month];
 }
 
-// ---------------- 3. شاشەی حجزکردن (هەفتانە و مانگانە) ----------------
+// ---------------- 3. شاشەی حجزکردن ----------------
 class BookingDaysScreen extends StatefulWidget {
   const BookingDaysScreen({super.key});
 
@@ -297,7 +302,7 @@ class _BookingDaysScreenState extends State<BookingDaysScreen> {
                       Text(
                         isMonthlyMode
                             ? 'خشتەی مانگی: ${_getKurdishMonthName(selectedMonth.month)} ${selectedMonth.year}'
-                            : 'دەستپێکی هەفتە: ${startDate.year}/${startDate.month}/${startDate.day}',
+                            : 'دەستپێکی هەفتە: ${startDate.year}/${startDate.month.toString().padLeft(2, '0')}/${startDate.day.toString().padLeft(2, '0')}',
                         style: const TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 15),
                       ),
@@ -332,7 +337,9 @@ class _BookingDaysScreenState extends State<BookingDaysScreen> {
                   itemBuilder: (context, index) {
                     DateTime day = daysToShow[index];
                     String dayName = getKurdishDayName(day.weekday);
-                    String dateStr = "${day.year}-${day.month}-${day.day}";
+                    // Fixed format to include leading zeros for consistency across devices
+                    String dateStr =
+                        "${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}";
 
                     return Card(
                       margin: const EdgeInsets.symmetric(vertical: 6),
@@ -385,8 +392,6 @@ class HoursBookingScreen extends StatefulWidget {
 }
 
 class _HoursBookingScreenState extends State<HoursBookingScreen> {
-  late Box box;
-
   final List<String> timeSlots = [
     '02:00 پ.ن - 03:00 پ.ن',
     '03:00 پ.ن - 04:00 پ.ن',
@@ -403,13 +408,8 @@ class _HoursBookingScreenState extends State<HoursBookingScreen> {
     '02:00 ب.ن - 03:00 ب.ن',
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    box = Hive.box('stadium_v2_box');
-  }
-
-  void _openBookingDialog(String dateKey, String slot, Map dayData) {
+  void _openBookingDialog(
+      String dateKey, String slot, Map<String, dynamic> dayData) {
     final nameController = TextEditingController();
     bool isPaid = false;
     bool isRecurring = false;
@@ -417,209 +417,219 @@ class _HoursBookingScreenState extends State<HoursBookingScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => Directionality(
-          textDirection: TextDirection.rtl,
-          child: AlertDialog(
-            title: Text('حجزکردنی کاتی $slot'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'ناوی تەواو (پێویستە)',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  CheckboxListTile(
-                    title: const Text('پارە واسڵ کراوە (سەح)'),
-                    value: isPaid,
-                    onChanged: (val) =>
-                        setDialogState(() => isPaid = val ?? false),
-                  ),
-                  const Divider(),
-                  CheckboxListTile(
-                    title: const Text('حجزی جێگیر (سابت) بۆ هەموو هەفتەیەک'),
-                    subtitle: const Text('دووبارەبوونەوە لە هەمان ڕۆژ و کاتدا'),
-                    value: isRecurring,
-                    onChanged: (val) =>
-                        setDialogState(() => isRecurring = val ?? false),
-                  ),
-                  if (isRecurring) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('ماوەی حجز لە مانگ:'),
-                        DropdownButton<int>(
-                          value: monthsCount,
-                          items: const [
-                            DropdownMenuItem(value: 1, child: Text('۱ مانگ')),
-                            DropdownMenuItem(value: 3, child: Text('۳ مانگ')),
-                            DropdownMenuItem(value: 6, child: Text('٦ مانگ')),
-                            DropdownMenuItem(
-                                value: 12, child: Text('۱ ساڵ (۱۲ مانگ)')),
+      builder: (BuildContext dialogContext) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setDialogState) {
+            return Directionality(
+              textDirection: TextDirection.rtl,
+              child: AlertDialog(
+                title: Text('حجزکردنی کاتی $slot'),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: nameController,
+                        decoration: const InputDecoration(
+                          labelText: 'ناوی تەواو (پێویستە)',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      CheckboxListTile(
+                        title: const Text('پارە واسڵ کراوە (سەح)'),
+                        value: isPaid,
+                        onChanged: (val) =>
+                            setDialogState(() => isPaid = val ?? false),
+                      ),
+                      const Divider(),
+                      CheckboxListTile(
+                        title:
+                            const Text('حجزی جێگیر (سابت) بۆ هەموو هەفتەیەک'),
+                        subtitle:
+                            const Text('دووبارەبوونەوە لە هەمان ڕۆژ و کاتدا'),
+                        value: isRecurring,
+                        onChanged: (val) =>
+                            setDialogState(() => isRecurring = val ?? false),
+                      ),
+                      if (isRecurring) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('ماوەی حجز لە مانگ:'),
+                            DropdownButton<int>(
+                              value: monthsCount,
+                              items: const [
+                                DropdownMenuItem(
+                                    value: 1, child: Text('۱ مانگ')),
+                                DropdownMenuItem(
+                                    value: 3, child: Text('۳ مانگ')),
+                                DropdownMenuItem(
+                                    value: 6, child: Text('٦ مانگ')),
+                                DropdownMenuItem(
+                                    value: 12, child: Text('۱ ساڵ (۱۲ مانگ)')),
+                              ],
+                              onChanged: (val) =>
+                                  setDialogState(() => monthsCount = val ?? 1),
+                            ),
                           ],
-                          onChanged: (val) =>
-                              setDialogState(() => monthsCount = val ?? 1),
                         ),
                       ],
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('پاشگەزبوونەوە')),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green.shade700,
-                  foregroundColor: Colors.white,
+                    ],
+                  ),
                 ),
-                onPressed: () async {
-                  if (nameController.text.trim().isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('تکایە ناوی حجزکەر بنووسە!')),
-                    );
-                    return;
-                  }
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: const Text('پاشگەزبوونەوە')),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green.shade700,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () async {
+                      if (nameController.text.trim().isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('تکایە ناوی حجزکەر بنووسە!')),
+                        );
+                        return;
+                      }
 
-                  String customerName = nameController.text.trim();
+                      String customerName = nameController.text.trim();
 
-                  if (isRecurring) {
-                    int totalWeeks = monthsCount * 4;
-                    for (int i = 0; i < totalWeeks; i++) {
-                      DateTime nextDate =
-                          widget.selectedDate.add(Duration(days: i * 7));
-                      String targetKey =
-                          "${nextDate.year}-${nextDate.month}-${nextDate.day}";
-                      Map targetDayData =
-                          Map.from(box.get(targetKey, defaultValue: {}));
-                      targetDayData[slot] = {
-                        'name': customerName,
-                        'isPaid': isPaid,
-                        'isFixed': true,
-                      };
-                      box.put(targetKey, targetDayData);
+                      if (isRecurring) {
+                        int totalWeeks = monthsCount * 4;
+                        for (int i = 0; i < totalWeeks; i++) {
+                          DateTime nextDate =
+                              widget.selectedDate.add(Duration(days: i * 7));
+                          String targetKey =
+                              "${nextDate.year}-${nextDate.month.toString().padLeft(2, '0')}-${nextDate.day.toString().padLeft(2, '0')}";
 
-                      // ناردنی بۆ فایەربەیس
-                      await FirebaseFirestore.instance
-                          .collection('stadium_bookings')
-                          .doc(targetKey)
-                          .set({
-                        slot: {
+                          DocumentSnapshot docSnap = await FirebaseFirestore
+                              .instance
+                              .collection('stadium_bookings')
+                              .doc(targetKey)
+                              .get();
+
+                          Map<String, dynamic> targetDayData = {};
+                          if (docSnap.exists && docSnap.data() != null) {
+                            targetDayData = Map<String, dynamic>.from(
+                                docSnap.data() as Map);
+                          }
+
+                          targetDayData[slot] = {
+                            'name': customerName,
+                            'isPaid': isPaid,
+                            'isFixed': true,
+                          };
+
+                          await FirebaseFirestore.instance
+                              .collection('stadium_bookings')
+                              .doc(targetKey)
+                              .set(targetDayData);
+                        }
+                      } else {
+                        dayData[slot] = {
                           'name': customerName,
                           'isPaid': isPaid,
-                          'isFixed': true,
-                        }
-                      }, SetOptions(merge: true));
-                    }
-                  } else {
-                    dayData[slot] = {
-                      'name': customerName,
-                      'isPaid': isPaid,
-                      'isFixed': false,
-                    };
-                    box.put(dateKey, dayData);
+                          'isFixed': false,
+                        };
 
-                    // ناردنی بۆ فایەربەیس
-                    await FirebaseFirestore.instance
-                        .collection('stadium_bookings')
-                        .doc(dateKey)
-                        .set({
-                      slot: {
-                        'name': customerName,
-                        'isPaid': isPaid,
-                        'isFixed': false,
+                        await FirebaseFirestore.instance
+                            .collection('stadium_bookings')
+                            .doc(dateKey)
+                            .set(dayData);
                       }
-                    }, SetOptions(merge: true));
-                  }
 
-                  Navigator.pop(context);
-                  setState(() {});
-                },
-                child: const Text('پاشەکەوتکردن'),
+                      if (dialogContext.mounted) Navigator.pop(dialogContext);
+                    },
+                    child: const Text('پاشەکەوتکردن'),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
-      ),
+            );
+          },
+        );
+      },
     );
   }
 
-  void _editOrDeleteBooking(
-      String dateKey, String slot, Map bookingInfo, Map dayData) {
+  void _editOrDeleteBooking(String dateKey, String slot, Map bookingInfo,
+      Map<String, dynamic> dayData) {
     final nameController = TextEditingController(text: bookingInfo['name']);
     bool isPaid = bookingInfo['isPaid'] ?? false;
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => Directionality(
-          textDirection: TextDirection.rtl,
-          child: AlertDialog(
-            title: Text('دەستکاریکردنی $slot'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'ناوی حجزکەر',
-                    border: OutlineInputBorder(),
+      builder: (BuildContext dialogContext) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setDialogState) {
+            return Directionality(
+              textDirection: TextDirection.rtl,
+              child: AlertDialog(
+                title: Text('دەستکاریکردنی $slot'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'ناوی حجزکەر',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    CheckboxListTile(
+                      title: const Text('پارە واسڵ کراوە (سەح)'),
+                      value: isPaid,
+                      onChanged: (val) =>
+                          setDialogState(() => isPaid = val ?? false),
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () async {
+                      dayData.remove(slot);
+                      await FirebaseFirestore.instance
+                          .collection('stadium_bookings')
+                          .doc(dateKey)
+                          .set(dayData);
+                      if (dialogContext.mounted) Navigator.pop(dialogContext);
+                    },
+                    child: const Text('سڕینەوەی حجز',
+                        style: TextStyle(color: Colors.red)),
                   ),
-                ),
-                const SizedBox(height: 10),
-                CheckboxListTile(
-                  title: const Text('پارە واسڵ کراوە (سەح)'),
-                  value: isPaid,
-                  onChanged: (val) =>
-                      setDialogState(() => isPaid = val ?? false),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  dayData.remove(slot);
-                  box.put(dateKey, dayData);
-                  Navigator.pop(context);
-                  setState(() {});
-                },
-                child: const Text('سڕینەوەی حجز',
-                    style: TextStyle(color: Colors.red)),
+                  ElevatedButton(
+                    onPressed: () async {
+                      dayData[slot] = {
+                        'name': nameController.text.trim(),
+                        'isPaid': isPaid,
+                        'isFixed': bookingInfo['isFixed'] ?? false,
+                      };
+                      await FirebaseFirestore.instance
+                          .collection('stadium_bookings')
+                          .doc(dateKey)
+                          .set(dayData);
+                      if (dialogContext.mounted) Navigator.pop(dialogContext);
+                    },
+                    child: const Text('نوێکردنەوە'),
+                  ),
+                ],
               ),
-              ElevatedButton(
-                onPressed: () {
-                  dayData[slot] = {
-                    'name': nameController.text.trim(),
-                    'isPaid': isPaid,
-                    'isFixed': bookingInfo['isFixed'] ?? false,
-                  };
-                  box.put(dateKey, dayData);
-                  Navigator.pop(context);
-                  setState(() {});
-                },
-                child: const Text('نوێکردنەوە'),
-              ),
-            ],
-          ),
-        ),
-      ),
+            );
+          },
+        );
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
     String dateKey =
-        "${widget.selectedDate.year}-${widget.selectedDate.month}-${widget.selectedDate.day}";
-    Map dayData = Map.from(box.get(dateKey, defaultValue: {}));
+        "${widget.selectedDate.year}-${widget.selectedDate.month.toString().padLeft(2, '0')}-${widget.selectedDate.day.toString().padLeft(2, '0')}";
 
     return Scaffold(
       appBar: AppBar(
@@ -629,80 +639,92 @@ class _HoursBookingScreenState extends State<HoursBookingScreen> {
       ),
       body: Directionality(
         textDirection: TextDirection.rtl,
-        child: RefreshIndicator(
-          onRefresh: () async {
-            setState(() {
-              box = Hive.box('stadium_v2_box');
-            });
+        child: StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('stadium_bookings')
+              .doc(dateKey)
+              .snapshots(),
+          builder: (context, snapshot) {
+            Map<String, dynamic> dayData = {};
+            if (snapshot.hasData && snapshot.data!.exists) {
+              dayData = Map<String, dynamic>.from(snapshot.data!.data() as Map);
+            }
+
+            return RefreshIndicator(
+              onRefresh: () async {},
+              child: ListView.builder(
+                padding: const EdgeInsets.all(12),
+                itemCount: timeSlots.length,
+                itemBuilder: (context, index) {
+                  String slot = timeSlots[index];
+                  bool isBooked = dayData.containsKey(slot);
+                  Map? bookingInfo = isBooked ? Map.from(dayData[slot]) : null;
+
+                  Color tileColor = Colors.grey.shade200;
+                  String statusText = 'بەردەستە';
+                  IconData icon = Icons.add_circle_outline;
+
+                  if (isBooked) {
+                    bool isPaid = bookingInfo?['isPaid'] ?? false;
+                    bool isFixed = bookingInfo?['isFixed'] ?? false;
+
+                    tileColor =
+                        isPaid ? Colors.green.shade200 : Colors.red.shade200;
+                    statusText = isPaid
+                        ? 'حجزکراوە (پارە واسڵکراوە${isFixed ? " - سابت" : ""})'
+                        : 'حجزکراوە (پارە واسڵنەکراوە${isFixed ? " - سابت" : ""})';
+                    icon = isPaid ? Icons.check_circle : Icons.cancel;
+                  }
+
+                  return Card(
+                    color: tileColor,
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    child: ListTile(
+                      title: Text(slot,
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: isBooked
+                          ? Text(
+                              'حجزکەر: ${bookingInfo?['name']} - $statusText')
+                          : Text(statusText),
+                      leading: Icon(icon,
+                          color: isBooked
+                              ? (bookingInfo?['isPaid'] == true
+                                  ? Colors.green.shade900
+                                  : Colors.red.shade900)
+                              : Colors.green),
+                      trailing: isBooked
+                          ? IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () async {
+                                dayData.remove(slot);
+                                await FirebaseFirestore.instance
+                                    .collection('stadium_bookings')
+                                    .doc(dateKey)
+                                    .set(dayData);
+                              },
+                            )
+                          : null,
+                      onTap: () {
+                        if (!isBooked) {
+                          _openBookingDialog(dateKey, slot, dayData);
+                        } else {
+                          _editOrDeleteBooking(
+                              dateKey, slot, bookingInfo!, dayData);
+                        }
+                      },
+                    ),
+                  );
+                },
+              ),
+            );
           },
-          child: ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: timeSlots.length,
-            itemBuilder: (context, index) {
-              String slot = timeSlots[index];
-              bool isBooked = dayData.containsKey(slot);
-              Map? bookingInfo = isBooked ? Map.from(dayData[slot]) : null;
-
-              Color tileColor = Colors.grey.shade200;
-              String statusText = 'بەردەستە';
-              IconData icon = Icons.add_circle_outline;
-
-              if (isBooked) {
-                bool isPaid = bookingInfo?['isPaid'] ?? false;
-                bool isFixed = bookingInfo?['isFixed'] ?? false;
-
-                tileColor =
-                    isPaid ? Colors.green.shade200 : Colors.red.shade200;
-                statusText = isPaid
-                    ? 'حجزکراوە (پارە واسڵکراوە${isFixed ? " - سابت" : ""})'
-                    : 'حجزکراوە (پارە واسڵنەکراوە${isFixed ? " - سابت" : ""})';
-                icon = isPaid ? Icons.check_circle : Icons.cancel;
-              }
-
-              return Card(
-                color: tileColor,
-                margin: const EdgeInsets.symmetric(vertical: 4),
-                child: ListTile(
-                  title: Text(slot,
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: isBooked
-                      ? Text('حجزکەر: ${bookingInfo?['name']} - $statusText')
-                      : Text(statusText),
-                  leading: Icon(icon,
-                      color: isBooked
-                          ? (bookingInfo?['isPaid'] == true
-                              ? Colors.green.shade900
-                              : Colors.red.shade900)
-                          : Colors.green),
-                  trailing: isBooked
-                      ? IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () {
-                            dayData.remove(slot);
-                            box.put(dateKey, dayData);
-                            setState(() {});
-                          },
-                        )
-                      : null,
-                  onTap: () {
-                    if (!isBooked) {
-                      _openBookingDialog(dateKey, slot, dayData);
-                    } else {
-                      _editOrDeleteBooking(
-                          dateKey, slot, bookingInfo!, dayData);
-                    }
-                  },
-                ),
-              );
-            },
-          ),
         ),
       ),
     );
   }
 }
 
-// ---------------- 5. شاشەی "دیتنا خشتێ" (هەفتانە و مانگانە) ----------------
+// ---------------- 5. شاشەی "دیتنا خشتێ" ----------------
 class WeeklyScheduleScreen extends StatefulWidget {
   const WeeklyScheduleScreen({super.key});
 
@@ -714,12 +736,10 @@ class _WeeklyScheduleScreenState extends State<WeeklyScheduleScreen> {
   bool isMonthlyMode = false;
   late DateTime startDate;
   late DateTime selectedMonth;
-  late Box box;
 
   @override
   void initState() {
     super.initState();
-    box = Hive.box('stadium_v2_box');
     DateTime now = DateTime.now().toLocal();
     startDate = DateTime(now.year, now.month, now.day);
     selectedMonth = DateTime(now.year, now.month, 1);
@@ -746,58 +766,66 @@ class _WeeklyScheduleScreenState extends State<WeeklyScheduleScreen> {
     }
   }
 
-  void _editBookingInSchedule(
-      String dateKey, String slot, Map bookingInfo, Map dayData) {
+  void _editBookingInSchedule(String dateKey, String slot, Map bookingInfo,
+      Map<String, dynamic> dayData) {
     final nameController = TextEditingController(text: bookingInfo['name']);
     bool isPaid = bookingInfo['isPaid'] ?? false;
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => Directionality(
-          textDirection: TextDirection.rtl,
-          child: AlertDialog(
-            title: Text('دەستکاریکردنی کاتی $slot'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'ناوی حجزکەر',
-                    border: OutlineInputBorder(),
+      builder: (BuildContext dialogContext) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setDialogState) {
+            return Directionality(
+              textDirection: TextDirection.rtl,
+              child: AlertDialog(
+                title: Text('دەستکاریکردنی کاتی $slot'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'ناوی حجزکەر',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    CheckboxListTile(
+                      title: const Text('پارە واسڵ کراوە (سەح)'),
+                      value: isPaid,
+                      onChanged: (val) =>
+                          setDialogState(() => isPaid = val ?? false),
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                      onPressed: () {
+                        if (dialogContext.mounted) Navigator.pop(dialogContext);
+                      },
+                      child: const Text('پاشگەزبوونەوە')),
+                  ElevatedButton(
+                    onPressed: () async {
+                      dayData[slot] = {
+                        'name': nameController.text.trim(),
+                        'isPaid': isPaid,
+                        'isFixed': bookingInfo['isFixed'] ?? false,
+                      };
+                      await FirebaseFirestore.instance
+                          .collection('stadium_bookings')
+                          .doc(dateKey)
+                          .set(dayData);
+                      if (dialogContext.mounted) Navigator.pop(dialogContext);
+                    },
+                    child: const Text('نوێکردنەوە'),
                   ),
-                ),
-                const SizedBox(height: 10),
-                CheckboxListTile(
-                  title: const Text('پارە واسڵ کراوە (سەح)'),
-                  value: isPaid,
-                  onChanged: (val) =>
-                      setDialogState(() => isPaid = val ?? false),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('پاشگەزبوونەوە')),
-              ElevatedButton(
-                onPressed: () {
-                  dayData[slot] = {
-                    'name': nameController.text.trim(),
-                    'isPaid': isPaid,
-                    'isFixed': bookingInfo['isFixed'] ?? false,
-                  };
-                  box.put(dateKey, dayData);
-                  Navigator.pop(context);
-                  setState(() {});
-                },
-                child: const Text('نوێکردنەوە'),
+                ],
               ),
-            ],
-          ),
-        ),
-      ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -879,7 +907,7 @@ class _WeeklyScheduleScreenState extends State<WeeklyScheduleScreen> {
                       Text(
                         isMonthlyMode
                             ? 'خشتەی مانگی: ${_getKurdishMonthName(selectedMonth.month)} ${selectedMonth.year}'
-                            : 'دەستپێکی هەفتە: ${startDate.year}/${startDate.month}/${startDate.day}',
+                            : 'دەستپێکی هەفتە: ${startDate.year}/${startDate.month.toString().padLeft(2, '0')}/${startDate.day.toString().padLeft(2, '0')}',
                         style: const TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 15),
                       ),
@@ -904,120 +932,138 @@ class _WeeklyScheduleScreenState extends State<WeeklyScheduleScreen> {
               ),
             ),
             Expanded(
-              child: RefreshIndicator(
-                onRefresh: () async {
-                  setState(() {
-                    box = Hive.box('stadium_v2_box');
-                  });
-                },
-                child: ListView.builder(
-                  itemCount: daysToShow.length,
-                  itemBuilder: (context, index) {
-                    DateTime day = daysToShow[index];
-                    String dateKey = "${day.year}-${day.month}-${day.day}";
-                    String dayName = getKurdishDayName(day.weekday);
-                    Map dayData = Map.from(box.get(dateKey, defaultValue: {}));
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('stadium_bookings')
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  Map<String, Map<String, dynamic>> allBookings = {};
+                  if (snapshot.hasData) {
+                    for (var doc in snapshot.data!.docs) {
+                      allBookings[doc.id] =
+                          Map<String, dynamic>.from(doc.data() as Map);
+                    }
+                  }
 
-                    if (dayData.isEmpty) {
-                      return Card(
-                        margin: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 4),
-                        child: ListTile(
+                  return RefreshIndicator(
+                    onRefresh: () async {},
+                    child: ListView.builder(
+                      itemCount: daysToShow.length,
+                      itemBuilder: (context, index) {
+                        DateTime day = daysToShow[index];
+                        String dateKey =
+                            "${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}";
+                        String dayName = getKurdishDayName(day.weekday);
+                        Map<String, dynamic> dayData =
+                            allBookings[dateKey] ?? {};
+
+                        if (dayData.isEmpty) {
+                          return Card(
+                            margin: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 4),
+                            child: ListTile(
+                              title: Text('$dayName ($dateKey)',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold)),
+                              subtitle: const Text('هیچ حجزێک نییە'),
+                            ),
+                          );
+                        }
+
+                        return ExpansionTile(
                           title: Text('$dayName ($dateKey)',
                               style:
                                   const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: const Text('هیچ حجزێک نییە'),
-                        ),
-                      );
-                    }
+                          subtitle:
+                              Text('کاتی حجزکراو: ${dayData.length} کاتژمێر'),
+                          children: dayData.entries.map((e) {
+                            bool isFixed = e.value['isFixed'] ?? false;
+                            bool isPaid = e.value['isPaid'] ?? false;
 
-                    return ExpansionTile(
-                      title: Text('$dayName ($dateKey)',
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text('کاتی حجزکراو: ${dayData.length} کاتژمێر'),
-                      children: dayData.entries.map((e) {
-                        bool isFixed = e.value['isFixed'] ?? false;
-                        bool isPaid = e.value['isPaid'] ?? false;
-
-                        return Container(
-                          color: isPaid
-                              ? Colors.green.shade50
-                              : Colors.red.shade50,
-                          child: ListTile(
-                            dense: true,
-                            title: Row(
-                              children: [
-                                Text(e.key,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold)),
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: isPaid
-                                        ? Colors.green.shade100
-                                        : Colors.red.shade100,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    isPaid ? 'واسڵکراوە' : 'واسڵنەکراوە',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: isPaid
-                                          ? Colors.green.shade900
-                                          : Colors.red.shade900,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                                if (isFixed) ...[
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.orange.shade100,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: const Text(
-                                      'سابت',
-                                      style: TextStyle(
+                            return Container(
+                              color: isPaid
+                                  ? Colors.green.shade50
+                                  : Colors.red.shade50,
+                              child: ListTile(
+                                dense: true,
+                                title: Row(
+                                  children: [
+                                    Text(e.key,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold)),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: isPaid
+                                            ? Colors.green.shade100
+                                            : Colors.red.shade100,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        isPaid ? 'واسڵکراوە' : 'واسڵنەکراوە',
+                                        style: TextStyle(
                                           fontSize: 10,
-                                          color: Colors.orange,
-                                          fontWeight: FontWeight.bold),
+                                          color: isPaid
+                                              ? Colors.green.shade900
+                                              : Colors.red.shade900,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                            subtitle: Text('ناونیشان: ${e.value['name']}'),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.edit,
-                                      color: Colors.blue, size: 20),
-                                  onPressed: () => _editBookingInSchedule(
-                                      dateKey, e.key, e.value, dayData),
+                                    if (isFixed) ...[
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.orange.shade100,
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                        ),
+                                        child: const Text(
+                                          'سابت',
+                                          style: TextStyle(
+                                              fontSize: 10,
+                                              color: Colors.orange,
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete,
-                                      color: Colors.red, size: 20),
-                                  onPressed: () {
-                                    dayData.remove(e.key);
-                                    box.put(dateKey, dayData);
-                                    setState(() {});
-                                  },
+                                subtitle: Text('ناونیشان: ${e.value['name']}'),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.edit,
+                                          color: Colors.blue, size: 20),
+                                      onPressed: () => _editBookingInSchedule(
+                                          dateKey, e.key, e.value, dayData),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete,
+                                          color: Colors.red, size: 20),
+                                      onPressed: () async {
+                                        dayData.remove(e.key);
+                                        await FirebaseFirestore.instance
+                                            .collection('stadium_bookings')
+                                            .doc(dateKey)
+                                            .set(dayData);
+                                      },
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          ),
+                              ),
+                            );
+                          }).toList(),
                         );
-                      }).toList(),
-                    );
-                  },
-                ),
+                      },
+                    ),
+                  );
+                },
               ),
             ),
           ],

@@ -26,10 +26,10 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/stadium_1.avif
+    - assets/stadiom_1.avif
     - assets/stadium.png
 
-flutter_icons:
+flutter_launcher_icons:
   image_path: "assets/stadium.png"
   ios: true
   android: true
