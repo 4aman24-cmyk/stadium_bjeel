@@ -629,7 +629,7 @@ class _HoursBookingScreenState extends State<HoursBookingScreen> {
   @override
   Widget build(BuildContext context) {
     String dateKey =
-        "${widget.selectedDate.year}-${widget.selectedDate.month.toString().padLeft(2, '0')}-${widget.selectedDate.day.toString().padLeft(2, '0')}";
+        "${widget.selectedDate.year}-${widget.selectedDate.month}-${widget.selectedDate.day}";
 
     return Scaffold(
       appBar: AppBar(
