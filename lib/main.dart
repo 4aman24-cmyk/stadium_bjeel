@@ -337,7 +337,6 @@ class _BookingDaysScreenState extends State<BookingDaysScreen> {
                   itemBuilder: (context, index) {
                     DateTime day = daysToShow[index];
                     String dayName = getKurdishDayName(day.weekday);
-                    // Fixed format to include leading zeros for consistency across devices
                     String dateStr =
                         "${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}";
 
@@ -651,7 +650,9 @@ class _HoursBookingScreenState extends State<HoursBookingScreen> {
             }
 
             return RefreshIndicator(
-              onRefresh: () async {},
+              onRefresh: () async {
+                setState(() {});
+              },
               child: ListView.builder(
                 padding: const EdgeInsets.all(12),
                 itemCount: timeSlots.length,
@@ -946,7 +947,9 @@ class _WeeklyScheduleScreenState extends State<WeeklyScheduleScreen> {
                   }
 
                   return RefreshIndicator(
-                    onRefresh: () async {},
+                    onRefresh: () async {
+                      setState(() {});
+                    },
                     child: ListView.builder(
                       itemCount: daysToShow.length,
                       itemBuilder: (context, index) {
