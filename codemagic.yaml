@@ -6,12 +6,15 @@ workflows:
     environment:
       flutter: stable
     scripts:
-      - name: Build Android and Safe iOS
+      - name: Build Android
         script: |
           flutter clean
           flutter pub get
           flutter build apk --release --android-skip-build-dependency-validation
-          flutter build ios --release --no-codesign || true
+      - name: Build iOS Archive
+        script: |
+          cd ios
+          xcodebuild -workspace Runner.xcworkspace -scheme Runner -configuration Release -destination "generic/platform=iOS" -archivePath $HOME/result.xcarchive archive CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO || true
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
-      - build/ios/**/*.app
+      - $HOME/result.xcarchive/**/*.app
