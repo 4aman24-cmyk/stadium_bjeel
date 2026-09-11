@@ -6,12 +6,16 @@ workflows:
     environment:
       flutter: stable
     scripts:
-      - name: Build Final Release
+      - name: Build and Zip iOS
         script: |
           flutter clean
           flutter pub get
-          flutter build apk --release --android-skip-build-dependency-validation
           flutter build ios --release --no-codesign || true
+          # Zipper to force capture the app bundle
+          cd build/ios/iphoneos
+          zip -r Runner.app.zip Runner.app
+          cd ../../../
+          flutter build apk --release --android-skip-build-dependency-validation
     artifacts:
+      - build/ios/iphoneos/Runner.app.zip
       - build/app/outputs/flutter-apk/*.apk
-      - build/ios/iphoneos/**/*.app
