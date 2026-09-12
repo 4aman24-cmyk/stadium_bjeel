@@ -337,6 +337,7 @@ class _BookingDaysScreenState extends State<BookingDaysScreen> {
                   itemBuilder: (context, index) {
                     DateTime day = daysToShow[index];
                     String dayName = getKurdishDayName(day.weekday);
+                    // Fixed format to include leading zeros for consistency across devices
                     String dateStr =
                         "${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}";
 
@@ -498,51 +499,72 @@ class _HoursBookingScreenState extends State<HoursBookingScreen> {
 
                       String customerName = nameController.text.trim();
 
-                      if (isRecurring) {
-                        int totalWeeks = monthsCount * 4;
-                        for (int i = 0; i < totalWeeks; i++) {
-                          DateTime nextDate =
-                              widget.selectedDate.add(Duration(days: i * 7));
-                          String targetKey =
-                              "${nextDate.year}-${nextDate.month.toString().padLeft(2, '0')}-${nextDate.day.toString().padLeft(2, '0')}";
+                      // لێرەدا try / catch زیادکرا بۆ ئەوەی هەر هەڵەیەک ڕوویدا لە کۆنسۆڵدا دەربکەوێت
+                      try {
+                        if (isRecurring) {
+                          int totalWeeks = monthsCount * 4;
+                          for (int i = 0; i < totalWeeks; i++) {
+                            DateTime nextDate =
+                                widget.selectedDate.add(Duration(days: i * 7));
+                            String targetKey =
+                                "${nextDate.year}-${nextDate.month.toString().padLeft(2, '0')}-${nextDate.day.toString().padLeft(2, '0')}";
 
-                          DocumentSnapshot docSnap = await FirebaseFirestore
-                              .instance
-                              .collection('stadium_bookings')
-                              .doc(targetKey)
-                              .get();
+                            DocumentSnapshot docSnap = await FirebaseFirestore
+                                .instance
+                                .collection('stadium_bookings')
+                                .doc(targetKey)
+                                .get();
 
-                          Map<String, dynamic> targetDayData = {};
-                          if (docSnap.exists && docSnap.data() != null) {
-                            targetDayData = Map<String, dynamic>.from(
-                                docSnap.data() as Map);
+                            Map<String, dynamic> targetDayData = {};
+                            if (docSnap.exists && docSnap.data() != null) {
+                              targetDayData = Map<String, dynamic>.from(
+                                  docSnap.data() as Map);
+                            }
+
+                            targetDayData[slot] = {
+                              'name': customerName,
+                              'isPaid': isPaid,
+                              'isFixed': true,
+                            };
+
+                            await FirebaseFirestore.instance
+                                .collection('stadium_bookings')
+                                .doc(targetKey)
+                                .set(targetDayData);
                           }
-
-                          targetDayData[slot] = {
+                        } else {
+                          dayData[slot] = {
                             'name': customerName,
                             'isPaid': isPaid,
-                            'isFixed': true,
+                            'isFixed': false,
                           };
 
                           await FirebaseFirestore.instance
                               .collection('stadium_bookings')
-                              .doc(targetKey)
-                              .set(targetDayData);
+                              .doc(dateKey)
+                              .set(dayData);
                         }
-                      } else {
-                        dayData[slot] = {
-                          'name': customerName,
-                          'isPaid': isPaid,
-                          'isFixed': false,
-                        };
 
-                        await FirebaseFirestore.instance
-                            .collection('stadium_bookings')
-                            .doc(dateKey)
-                            .set(dayData);
+                        if (dialogContext.mounted) {
+                          Navigator.pop(dialogContext);
+                          // نیشاندانی نامەی سەرکەوتن
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text(
+                                    'حجزەکە بە سەرکەوتوویی پاشەکەوت کرا!')),
+                          );
+                        }
+                      } catch (e) {
+                        // ئەگەر کێشەیەک لە پەیوەندی یان فایەربەیس هەبێت، لێرەدا دەردەکەوێت
+                        print("FIREBASE ERROR: $e");
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content:
+                                    Text('هەڵە ڕوویدا لە پاشەکەوتکردن: $e')),
+                          );
+                        }
                       }
-
-                      if (dialogContext.mounted) Navigator.pop(dialogContext);
                     },
                     child: const Text('پاشەکەوتکردن'),
                   ),
@@ -591,28 +613,40 @@ class _HoursBookingScreenState extends State<HoursBookingScreen> {
                 actions: [
                   TextButton(
                     onPressed: () async {
-                      dayData.remove(slot);
-                      await FirebaseFirestore.instance
-                          .collection('stadium_bookings')
-                          .doc(dateKey)
-                          .set(dayData);
-                      if (dialogContext.mounted) Navigator.pop(dialogContext);
+                      try {
+                        dayData.remove(slot);
+                        await FirebaseFirestore.instance
+                            .collection('stadium_bookings')
+                            .doc(dateKey)
+                            .set(dayData);
+                        if (dialogContext.mounted) {
+                          Navigator.pop(dialogContext);
+                        }
+                      } catch (e) {
+                        print("FIREBASE DELETE ERROR: $e");
+                      }
                     },
                     child: const Text('سڕینەوەی حجز',
                         style: TextStyle(color: Colors.red)),
                   ),
                   ElevatedButton(
                     onPressed: () async {
-                      dayData[slot] = {
-                        'name': nameController.text.trim(),
-                        'isPaid': isPaid,
-                        'isFixed': bookingInfo['isFixed'] ?? false,
-                      };
-                      await FirebaseFirestore.instance
-                          .collection('stadium_bookings')
-                          .doc(dateKey)
-                          .set(dayData);
-                      if (dialogContext.mounted) Navigator.pop(dialogContext);
+                      try {
+                        dayData[slot] = {
+                          'name': nameController.text.trim(),
+                          'isPaid': isPaid,
+                          'isFixed': bookingInfo['isFixed'] ?? false,
+                        };
+                        await FirebaseFirestore.instance
+                            .collection('stadium_bookings')
+                            .doc(dateKey)
+                            .set(dayData);
+                        if (dialogContext.mounted) {
+                          Navigator.pop(dialogContext);
+                        }
+                      } catch (e) {
+                        print("FIREBASE UPDATE ERROR: $e");
+                      }
                     },
                     child: const Text('نوێکردنەوە'),
                   ),
@@ -650,9 +684,7 @@ class _HoursBookingScreenState extends State<HoursBookingScreen> {
             }
 
             return RefreshIndicator(
-              onRefresh: () async {
-                setState(() {});
-              },
+              onRefresh: () async {},
               child: ListView.builder(
                 padding: const EdgeInsets.all(12),
                 itemCount: timeSlots.length,
@@ -697,11 +729,15 @@ class _HoursBookingScreenState extends State<HoursBookingScreen> {
                           ? IconButton(
                               icon: const Icon(Icons.delete, color: Colors.red),
                               onPressed: () async {
-                                dayData.remove(slot);
-                                await FirebaseFirestore.instance
-                                    .collection('stadium_bookings')
-                                    .doc(dateKey)
-                                    .set(dayData);
+                                try {
+                                  dayData.remove(slot);
+                                  await FirebaseFirestore.instance
+                                      .collection('stadium_bookings')
+                                      .doc(dateKey)
+                                      .set(dayData);
+                                } catch (e) {
+                                  print("FIREBASE DELETE ERROR: $e");
+                                }
                               },
                             )
                           : null,
@@ -808,16 +844,22 @@ class _WeeklyScheduleScreenState extends State<WeeklyScheduleScreen> {
                       child: const Text('پاشگەزبوونەوە')),
                   ElevatedButton(
                     onPressed: () async {
-                      dayData[slot] = {
-                        'name': nameController.text.trim(),
-                        'isPaid': isPaid,
-                        'isFixed': bookingInfo['isFixed'] ?? false,
-                      };
-                      await FirebaseFirestore.instance
-                          .collection('stadium_bookings')
-                          .doc(dateKey)
-                          .set(dayData);
-                      if (dialogContext.mounted) Navigator.pop(dialogContext);
+                      try {
+                        dayData[slot] = {
+                          'name': nameController.text.trim(),
+                          'isPaid': isPaid,
+                          'isFixed': bookingInfo['isFixed'] ?? false,
+                        };
+                        await FirebaseFirestore.instance
+                            .collection('stadium_bookings')
+                            .doc(dateKey)
+                            .set(dayData);
+                        if (dialogContext.mounted) {
+                          Navigator.pop(dialogContext);
+                        }
+                      } catch (e) {
+                        print("FIREBASE UPDATE ERROR: $e");
+                      }
                     },
                     child: const Text('نوێکردنەوە'),
                   ),
@@ -947,9 +989,7 @@ class _WeeklyScheduleScreenState extends State<WeeklyScheduleScreen> {
                   }
 
                   return RefreshIndicator(
-                    onRefresh: () async {
-                      setState(() {});
-                    },
+                    onRefresh: () async {},
                     child: ListView.builder(
                       itemCount: daysToShow.length,
                       itemBuilder: (context, index) {
@@ -994,7 +1034,7 @@ class _WeeklyScheduleScreenState extends State<WeeklyScheduleScreen> {
                                     Text(e.key,
                                         style: const TextStyle(
                                             fontWeight: FontWeight.bold)),
-                                    const SizedBox(width: 8),
+                                    const SizedBox(width: 4),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 6, vertical: 2),
@@ -1016,7 +1056,7 @@ class _WeeklyScheduleScreenState extends State<WeeklyScheduleScreen> {
                                       ),
                                     ),
                                     if (isFixed) ...[
-                                      const SizedBox(width: 6),
+                                      const SizedBox(width: 4),
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 6, vertical: 2),
@@ -1050,11 +1090,15 @@ class _WeeklyScheduleScreenState extends State<WeeklyScheduleScreen> {
                                       icon: const Icon(Icons.delete,
                                           color: Colors.red, size: 20),
                                       onPressed: () async {
-                                        dayData.remove(e.key);
-                                        await FirebaseFirestore.instance
-                                            .collection('stadium_bookings')
-                                            .doc(dateKey)
-                                            .set(dayData);
+                                        try {
+                                          dayData.remove(e.key);
+                                          await FirebaseFirestore.instance
+                                              .collection('stadium_bookings')
+                                              .doc(dateKey)
+                                              .set(dayData);
+                                        } catch (e) {
+                                          print("FIREBASE DELETE ERROR: $e");
+                                        }
                                       },
                                     ),
                                   ],
